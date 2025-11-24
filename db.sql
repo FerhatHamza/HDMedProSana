@@ -1,9 +1,9 @@
---
--- Cloudflare D1 Schema for MedProSana
---
+DROP TABLE IF EXISTS Protocols;
+DROP TABLE IF EXISTS Medications;
+DROP TABLE IF EXISTS LabResults;
+DROP TABLE IF EXISTS Patients;
 
--- Table for main patient data
-CREATE TABLE IF NOT EXISTS Patients (
+CREATE TABLE Patients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     familyname TEXT NOT NULL,
@@ -11,9 +11,7 @@ CREATE TABLE IF NOT EXISTS Patients (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table for patient hemodialysis protocols (1-to-1 relationship with Patients)
--- We store the protocol as JSON for easy updates to complex, non-searchable fields.
-CREATE TABLE IF NOT EXISTS Protocols (
+CREATE TABLE Protocols (
     patient_id INTEGER PRIMARY KEY,
     dialyzer TEXT,
     access TEXT,
@@ -24,25 +22,20 @@ CREATE TABLE IF NOT EXISTS Protocols (
     FOREIGN KEY(patient_id) REFERENCES Patients(id) ON DELETE CASCADE
 );
 
--- Table for patient medication history
-CREATE TABLE IF NOT EXISTS Medications (
+CREATE TABLE Medications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     patient_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     dosage TEXT NOT NULL,
-    date TEXT DEFAULT (strftime('%Y-%m-%d', 'now')), 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(patient_id) REFERENCES Patients(id) ON DELETE CASCADE
 );
 
--- Table for patient lab results history
-CREATE TABLE IF NOT EXISTS LabResults (
+CREATE TABLE LabResults (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     patient_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     result TEXT NOT NULL, 
-    date TEXT DEFAULT (strftime('%Y-%m-%d', 'now')), 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(patient_id) REFERENCES Patients(id) ON DELETE CASCADE
 );
-
