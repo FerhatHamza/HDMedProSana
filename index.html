@@ -6,6 +6,8 @@
     <title>MedProSana - Hemodialysis Management</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- CSS STYLES SECTION -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
@@ -28,6 +30,7 @@
 </head>
 <body>
 
+<!-- HTML STRUCTURE SECTION -->
 <div id="app" class="min-h-screen">
     <!-- Header -->
     <header class="bg-gray-800 text-white shadow-lg sticky top-0 z-10">
@@ -45,14 +48,18 @@
         <!-- Message Box/Toast Area -->
         <div id="message-box" class="fixed top-20 right-4 z-50"></div>
 
-        <!-- Main Content Area (Patient List or Detail View) -->
+        <!-- API Status/Error Indicator -->
+        <div id="api-status-indicator" class="p-2 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg hidden">
+            Checking API status...
+        </div>
+
+        <!-- Main Content Area -->
         <div id="content-container">
+            <!-- Initial Loading State -->
             <div class="text-center p-12 text-gray-500">
-                <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">Loading Data</h3>
-                <p class="mt-1 text-sm text-gray-500">Connecting to hdmedprosana-api...</p>
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto"></div>
+                <h3 class="mt-4 text-lg font-medium text-gray-900">Loading Data...</h3>
+                <p class="mt-1 text-sm text-gray-500">Attempting to connect to your deployed Cloudflare API.</p>
             </div>
         </div>
     </main>
@@ -84,22 +91,44 @@
     </div>
 </div>
 
+<!-- JAVASCRIPT LOGIC SECTION -->
 <script>
-    // --- Application State ---
+    // --- Configuration and State ---
     let state = {
-        view: 'list', // 'list' or 'detail'
+        view: 'list',
         currentPatient: null,
         currentTab: 'info',
         patientList: [],
         isLoading: false,
     };
-
-    // --- API Configuration: UPDATED TO YOUR DEPLOYED WORKER URL ---
+    
+    // IMPORTANT: Set this to your deployed Worker URL
     const API_BASE = 'https://hdmedprosana-api.ferhathamza17.workers.dev/api';
+    const statusIndicator = document.getElementById('api-status-indicator');
 
     // --- UTILITY FUNCTIONS ---
 
+    function updateStatusIndicator(message, type = 'info') {
+        statusIndicator.textContent = message;
+        statusIndicator.className = 'p-2 mb-4 text-sm rounded-lg';
+        statusIndicator.classList.remove('hidden');
+
+        switch (type) {
+            case 'success':
+                statusIndicator.classList.add('text-green-700', 'bg-green-100');
+                break;
+            case 'error':
+                statusIndicator.classList.add('text-red-700', 'bg-red-100', 'font-bold');
+                break;
+            case 'info':
+            default:
+                statusIndicator.classList.add('text-blue-700', 'bg-blue-100');
+                break;
+        }
+    }
+
     function showMessage(text, type = 'success') {
+        // Implementation for the toast message box remains the same
         const box = document.getElementById('message-box');
         const bgColor = type === 'error' ? 'bg-red-500' : (type === 'warning' ? 'bg-yellow-500' : 'bg-green-500');
 
@@ -138,7 +167,7 @@
 
     async function apiFetch(url, method = 'GET', data = null) {
         state.isLoading = true;
-        renderApp(); // Show loading state
+        renderApp();
 
         try {
             const options = {
@@ -149,11 +178,21 @@
                 options.body = JSON.stringify(data);
             }
 
-            const response = await fetch(`${API_BASE}${url}`, options);
+            const fullUrl = `${API_BASE}${url}`;
+            console.log(`[API] Fetching: ${method} ${fullUrl}`);
+
+            const response = await fetch(fullUrl, options);
             
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`API Error ${response.status}: ${errorText}`);
+                // Log and throw detailed error for debugging
+                console.error(`[API ERROR] Status: ${response.status}`, errorText);
+                throw new Error(`API Error ${response.status}. Check console for details. (URL: ${fullUrl})`);
+            }
+
+            // Update status indicator on first successful call
+            if (url === '/patients' && method === 'GET') {
+                updateStatusIndicator(`Connection successful. Worker is responsive.`, 'success');
             }
 
             if (response.status === 204 || method === 'PUT' || method === 'DELETE') {
@@ -164,8 +203,15 @@
 
         } catch (error) {
             console.error("API Call Failed:", error);
-            showMessage(error.message || `API call failed for ${url}. See console.`, 'error');
+            const errorMessage = error.message || `API call failed for ${url}. Network or CORS issue suspected.`;
+            showMessage(errorMessage, 'error');
+            
+            // Critical: Update status indicator for user visibility
+            if (url === '/patients' && method === 'GET') {
+                updateStatusIndicator(`API Connection FAILED: ${errorMessage}. Check browser console for CORS errors.`, 'error');
+            }
             return null;
+
         } finally {
             state.isLoading = false;
         }
@@ -175,7 +221,7 @@
         const result = await apiFetch('/patients');
         if (result && result.patients) {
             state.patientList = result.patients.sort((a, b) => (a.familyname || '').localeCompare(b.familyname || ''));
-            // Refetch details for current patient if in detail view
+            // Refresh detail view if needed
              if (state.view === 'detail' && state.currentPatient) {
                 const updatedPatient = state.patientList.find(p => p.id === state.currentPatient.id);
                 if (updatedPatient) {
@@ -200,20 +246,17 @@
         if (patientRes && medsRes && labsRes && protocolRes) {
             state.currentPatient = {
                 ...patientRes.patient,
-                // Sort by date/timestamp, assuming D1 provides a date string
+                // Sort by the 'created_at' timestamp
                 medications: medsRes.medications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
                 labResults: labsRes.labResults.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
                 protocol: protocolRes.protocol,
             };
             renderApp();
-        } else {
-             // Handle case where one fetch failed (e.g., patient was deleted)
-             if (!patientRes) {
-                showMessage("Patient record no longer exists or failed to load.", 'error');
-                state.view = 'list';
-                state.currentPatient = null;
-                fetchPatients();
-             }
+        } else if (!patientRes) {
+            showMessage("Patient record no longer exists or failed to load.", 'error');
+            state.view = 'list';
+            state.currentPatient = null;
+            fetchPatients();
         }
     }
 
@@ -242,80 +285,6 @@
             await fetchPatientDetail(patientId);
         }
     }
-
-    // --- EVENT LISTENERS AND HANDLERS ---
-
-    document.addEventListener('DOMContentLoaded', () => {
-        // Initial data fetch
-        fetchPatients();
-
-        // New Patient Button
-        document.getElementById('add-patient-btn').addEventListener('click', () => {
-            document.getElementById('patient-form').reset();
-            document.getElementById('modal-title').textContent = 'Add New Patient';
-            document.getElementById('patient-id').value = '';
-            openModal('patient-modal');
-        });
-
-        // Patient Form Submission
-        document.getElementById('patient-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const patientData = Object.fromEntries(formData.entries());
-
-            if (patientData.name && patientData.familyname && patientData.birthdate) {
-                addPatient(patientData);
-            } else {
-                showMessage("Please fill in all required patient fields.", 'error');
-            }
-        });
-
-        // Delegate listener for navigation and actions
-        document.getElementById('content-container').addEventListener('click', async (e) => {
-            // Patient Card click (Detail View)
-            const patientCard = e.target.closest('[data-patient-id]');
-            if (patientCard) {
-                const id = patientCard.getAttribute('data-patient-id');
-                const patient = state.patientList.find(p => p.id === parseInt(id));
-                if (patient) {
-                    state.currentPatient = patient;
-                    state.view = 'detail';
-                    state.currentTab = 'info';
-                    renderApp(); // Initial render with loading state before fetch
-                    await fetchPatientDetail(id);
-                }
-            }
-
-            // Tab Navigation Listener
-            const tabBtn = e.target.closest('.tab-btn');
-            if (tabBtn) {
-                state.currentTab = tabBtn.getAttribute('data-tab');
-                renderApp();
-            }
-
-            // Back button listener
-            const backBtn = e.target.closest('#back-to-list');
-            if (backBtn) {
-                state.view = 'list';
-                state.currentPatient = null;
-                state.currentTab = 'info';
-                fetchPatients(); // Refresh list just in case
-            }
-
-            // Add Record Button Listener
-            const addRecordBtn = e.target.closest('[data-add-record]');
-            if (addRecordBtn) {
-                const recordType = addRecordBtn.getAttribute('data-add-record');
-                showAddRecordPrompt(recordType);
-            }
-
-            // Edit Protocol Listener
-            const editProtocolBtn = e.target.closest('#edit-protocol-btn');
-            if (editProtocolBtn) {
-                showProtocolEditPrompt();
-            }
-        });
-    });
 
     // --- PROMPT/INPUT FUNCTIONS ---
 
@@ -371,9 +340,76 @@
 
         updatePatientProtocol(patientId, updatedProtocol);
     }
+    
+    // --- EVENT LISTENERS AND HANDLERS ---
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initial data fetch and status check
+        updateStatusIndicator(`Connecting to: ${API_BASE}`);
+        fetchPatients();
+
+        // Event delegation for the rest of the application remains the same
+        document.getElementById('add-patient-btn').addEventListener('click', () => {
+            document.getElementById('patient-form').reset();
+            document.getElementById('modal-title').textContent = 'Add New Patient';
+            document.getElementById('patient-id').value = '';
+            openModal('patient-modal');
+        });
+
+        document.getElementById('patient-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const patientData = Object.fromEntries(formData.entries());
+
+            if (patientData.name && patientData.familyname && patientData.birthdate) {
+                addPatient(patientData);
+            } else {
+                showMessage("Please fill in all required patient fields.", 'error');
+            }
+        });
+
+        document.getElementById('content-container').addEventListener('click', async (e) => {
+            const patientCard = e.target.closest('[data-patient-id]');
+            if (patientCard) {
+                const id = patientCard.getAttribute('data-patient-id');
+                const patient = state.patientList.find(p => p.id === parseInt(id));
+                if (patient) {
+                    state.currentPatient = patient;
+                    state.view = 'detail';
+                    state.currentTab = 'info';
+                    renderApp(); 
+                    await fetchPatientDetail(id);
+                }
+            }
+
+            const tabBtn = e.target.closest('.tab-btn');
+            if (tabBtn) {
+                state.currentTab = tabBtn.getAttribute('data-tab');
+                renderApp();
+            }
+
+            const backBtn = e.target.closest('#back-to-list');
+            if (backBtn) {
+                state.view = 'list';
+                state.currentPatient = null;
+                state.currentTab = 'info';
+                fetchPatients(); 
+            }
+
+            const addRecordBtn = e.target.closest('[data-add-record]');
+            if (addRecordBtn) {
+                showAddRecordPrompt(addRecordBtn.getAttribute('data-add-record'));
+            }
+
+            const editProtocolBtn = e.target.closest('#edit-protocol-btn');
+            if (editProtocolBtn) {
+                showProtocolEditPrompt();
+            }
+        });
+    });
 
     // --- RENDERING FUNCTIONS ---
-
+    
     function renderApp() {
         const container = document.getElementById('content-container');
 
@@ -449,7 +485,6 @@
             { id: 'protocol', name: 'HD Protocol' }
         ];
 
-        // Tab Content Generation
         let tabContentHtml = '';
         const meds = p.medications || [];
         const labs = p.labResults || [];
@@ -581,9 +616,6 @@
             </div>
         `;
     }
-
-    // Initial render call after DOM load
-    document.addEventListener('DOMContentLoaded', renderApp);
 
 </script>
 </body>
