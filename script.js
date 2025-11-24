@@ -14,26 +14,32 @@
     // --- UTILITY FUNCTIONS ---
 
     function updateStatusIndicator(message, type = 'info') {
-        statusIndicator.textContent = message;
-        statusIndicator.className = 'p-2 mb-4 text-sm rounded-lg';
-        statusIndicator.classList.remove('hidden');
+        // Ensure statusIndicator exists before proceeding
+        const indicator = document.getElementById('api-status-indicator');
+        if (!indicator) return;
+
+        indicator.textContent = message;
+        indicator.className = 'p-2 mb-4 text-sm rounded-lg';
+        indicator.classList.remove('hidden');
 
         switch (type) {
             case 'success':
-                statusIndicator.classList.add('text-green-700', 'bg-green-100');
+                indicator.classList.add('text-green-700', 'bg-green-100');
                 break;
             case 'error':
-                statusIndicator.classList.add('text-red-700', 'bg-red-100', 'font-bold');
+                indicator.classList.add('text-red-700', 'bg-red-100', 'font-bold');
                 break;
             case 'info':
             default:
-                statusIndicator.classList.add('text-blue-700', 'bg-blue-100');
+                indicator.classList.add('text-blue-700', 'bg-blue-100');
                 break;
         }
     }
 
     function showMessage(text, type = 'success') {
         const box = document.getElementById('message-box');
+        if (!box) return;
+
         const bgColor = type === 'error' ? 'bg-red-500' : (type === 'warning' ? 'bg-yellow-500' : 'bg-green-500');
 
         const toast = document.createElement('div');
@@ -48,11 +54,11 @@
     }
 
     function openModal(modalId) {
-        document.getElementById(modalId).classList.add('modal-active');
+        document.getElementById(modalId)?.classList.add('modal-active');
     }
 
     function closeModal(modalId) {
-        document.getElementById(modalId).classList.remove('modal-active');
+        document.getElementById(modalId)?.classList.remove('modal-active');
     }
 
     function calculateAge(birthdateString) {
@@ -220,6 +226,7 @@
             addPatientRecord(patientId, 'sessions', {
                 pre_weight: preW,
                 post_weight: postW,
+                post_weight: postW,
                 pre_bp: preBP,
                 post_bp: postBP,
                 access_condition: access,
@@ -252,74 +259,76 @@
         });
     }
     
-    // --- EVENT LISTENERS ---
+    // --- EVENT LISTENERS (Moved out of DOMContentLoaded) ---
 
-    document.addEventListener('DOMContentLoaded', () => {
-        updateStatusIndicator(`Connecting to: ${API_BASE}`);
-        fetchPatients();
+    // Initialize on load
+    updateStatusIndicator(`Connecting to: ${API_BASE}`);
+    fetchPatients();
 
-        document.getElementById('add-patient-btn').addEventListener('click', () => {
-            document.getElementById('patient-form').reset();
-            document.getElementById('modal-title').textContent = 'Add New Patient';
-            document.getElementById('patient-id').value = '';
-            openModal('patient-modal');
-        });
+    // Event listener bindings
+    document.getElementById('add-patient-btn')?.addEventListener('click', () => {
+        document.getElementById('patient-form')?.reset();
+        document.getElementById('modal-title').textContent = 'Add New Patient';
+        document.getElementById('patient-id').value = '';
+        openModal('patient-modal');
+        console.log("Add Patient button clicked and modal opened.");
+    });
 
-        document.getElementById('patient-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const patientData = Object.fromEntries(formData.entries());
-            if (patientData.name && patientData.familyname && patientData.birthdate) {
-                addPatient(patientData);
-            } else {
-                showMessage("Please fill in all required patient fields.", 'error');
-            }
-        });
+    document.getElementById('patient-form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const patientData = Object.fromEntries(formData.entries());
+        if (patientData.name && patientData.familyname && patientData.birthdate) {
+            addPatient(patientData);
+        } else {
+            showMessage("Please fill in all required patient fields.", 'error');
+        }
+    });
 
-        document.getElementById('content-container').addEventListener('click', async (e) => {
-            const patientCard = e.target.closest('[data-patient-id]');
-            if (patientCard) {
-                const id = patientCard.getAttribute('data-patient-id');
-                const patient = state.patientList.find(p => p.id === parseInt(id));
-                if (patient) {
-                    state.currentPatient = patient;
-                    state.view = 'detail';
-                    state.currentTab = 'info';
-                    renderApp(); 
-                    await fetchPatientDetail(id);
-                }
-            }
-
-            const tabBtn = e.target.closest('.tab-btn');
-            if (tabBtn) {
-                state.currentTab = tabBtn.getAttribute('data-tab');
-                renderApp();
-            }
-
-            const backBtn = e.target.closest('#back-to-list');
-            if (backBtn) {
-                state.view = 'list';
-                state.currentPatient = null;
+    document.getElementById('content-container')?.addEventListener('click', async (e) => {
+        const patientCard = e.target.closest('[data-patient-id]');
+        if (patientCard) {
+            const id = patientCard.getAttribute('data-patient-id');
+            const patient = state.patientList.find(p => p.id === parseInt(id));
+            if (patient) {
+                state.currentPatient = patient;
+                state.view = 'detail';
                 state.currentTab = 'info';
-                fetchPatients(); 
+                renderApp(); 
+                await fetchPatientDetail(id);
             }
+        }
 
-            const addRecordBtn = e.target.closest('[data-add-record]');
-            if (addRecordBtn) {
-                showAddRecordPrompt(addRecordBtn.getAttribute('data-add-record'));
-            }
+        const tabBtn = e.target.closest('.tab-btn');
+        if (tabBtn) {
+            state.currentTab = tabBtn.getAttribute('data-tab');
+            renderApp();
+        }
 
-            const editProtocolBtn = e.target.closest('#edit-protocol-btn');
-            if (editProtocolBtn) {
-                showProtocolEditPrompt();
-            }
-        });
+        const backBtn = e.target.closest('#back-to-list');
+        if (backBtn) {
+            state.view = 'list';
+            state.currentPatient = null;
+            state.currentTab = 'info';
+            fetchPatients(); 
+        }
+
+        const addRecordBtn = e.target.closest('[data-add-record]');
+        if (addRecordBtn) {
+            showAddRecordPrompt(addRecordBtn.getAttribute('data-add-record'));
+        }
+
+        const editProtocolBtn = e.target.closest('#edit-protocol-btn');
+        if (editProtocolBtn) {
+            showProtocolEditPrompt();
+        }
     });
 
     // --- RENDERING FUNCTIONS ---
     
     function renderApp() {
         const container = document.getElementById('content-container');
+        if (!container) return; // Guard clause
 
         if (state.isLoading && !state.currentPatient) { // Only show full loader if not refreshing details
             container.innerHTML = `
