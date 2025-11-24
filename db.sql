@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS Patients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     familyname TEXT NOT NULL,
-    birthdate TEXT NOT NULL, -- Stored as YYYY-MM-DD
+    birthdate TEXT NOT NULL, 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS Medications (
     patient_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     dosage TEXT NOT NULL,
-    date TEXT DEFAULT (strftime('%Y-%m-%d', 'now')), -- Date of record
+    date TEXT DEFAULT (strftime('%Y-%m-%d', 'now')), 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(patient_id) REFERENCES Patients(id) ON DELETE CASCADE
 );
@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS LabResults (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     patient_id INTEGER NOT NULL,
     name TEXT NOT NULL,
-    result TEXT NOT NULL, -- Store as text to include units (e.g., "85 mg/dL")
-    date TEXT DEFAULT (strftime('%Y-%m-%d', 'now')), -- Date of record
+    result TEXT NOT NULL, 
+    date TEXT DEFAULT (strftime('%Y-%m-%d', 'now')), 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(patient_id) REFERENCES Patients(id) ON DELETE CASCADE
 );
