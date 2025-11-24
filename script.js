@@ -406,7 +406,9 @@
         const renderSessions = (sessions) => {
             if (sessions.length === 0) return `<p class="text-center text-gray-500 p-8 bg-white rounded-lg">No dialysis sessions recorded yet.</p>`;
             return sessions.map(s => {
-                const loss = (s.pre_weight && s.post_weight) ? (s.pre_weight - s.post_weight).toFixed(2) : 'N/A';
+                const preW = parseFloat(s.pre_weight);
+                const postW = parseFloat(s.post_weight);
+                const loss = (preW && postW) ? (preW - postW).toFixed(2) : 'N/A';
                 return `
                 <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3">
                     <div class="flex justify-between items-center border-b pb-2 mb-2">
