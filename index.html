@@ -3,66 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedProSana - Hemodialysis Management</title>
-    <!-- Load Tailwind CSS -->
+    <title>MedProSana - Dialysis Patient Manager</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- CSS STYLES SECTION -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f9fb;
+            background-color: #f4f7f9;
         }
-        .modal {
-            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-        }
-        .modal-active {
-            opacity: 1;
-            visibility: visible;
+        .tab-btn {
+            border-bottom: 2px solid transparent;
+            font-weight: 500;
         }
         .tab-btn-active {
-            border-bottom: 3px solid #10b981; /* Emerald-500 */
-            color: #10b981;
-            font-weight: 600;
+            color: #10b981; /* emerald-500 */
+            border-color: #10b981; 
+        }
+        /* Modal classes match the structure provided in your fragment */
+        .modal {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-active {
+            visibility: visible;
+            opacity: 1;
         }
     </style>
 </head>
 <body>
-
-<!-- HTML STRUCTURE SECTION -->
-<div id="app" class="min-h-screen">
-    <!-- Header -->
-    <header class="bg-gray-800 text-white shadow-lg sticky top-0 z-10">
-        <div class="container mx-auto p-4 flex justify-between items-center">
-            <h1 class="text-2xl font-bold tracking-tight">
-                <span class="text-emerald-400">MedPro</span>Sana
-            </h1>
-            <button id="add-patient-btn" class="bg-emerald-500 hover:bg-emerald-600 transition p-2 rounded-lg text-white font-medium shadow-md">
-                + Add Patient
-            </button>
-        </div>
-    </header>
-
-    <main class="container mx-auto p-4 sm:p-6 pt-4">
-        <!-- Message Box/Toast Area -->
-        <div id="message-box" class="fixed top-20 right-4 z-50"></div>
-
-        <!-- API Status/Error Indicator -->
-        <div id="api-status-indicator" class="p-2 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg hidden">
-            Checking API status...
-        </div>
-
-        <!-- Main Content Area -->
-        <div id="content-container">
-            <!-- Initial Loading State -->
-            <div class="text-center p-12 text-gray-500">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto"></div>
-                <h3 class="mt-4 text-lg font-medium text-gray-900">Loading Data...</h3>
-                <p class="mt-1 text-sm text-gray-500">Attempting to connect to your deployed Cloudflare API.</p>
+    <div class="min-h-screen">
+        <header class="bg-white shadow-sm sticky top-0 z-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                <h1 class="text-3xl font-extrabold text-emerald-600">MedProSana</h1>
+                <button id="add-patient-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-200 flex items-center">
+                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    New Patient
+                </button>
             </div>
-        </div>
-    </main>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- API Status Indicator -->
+            <div id="api-status-indicator" class="hidden"></div>
+            
+            <!-- Message Box for Toasts -->
+            <div id="message-box" class="fixed bottom-4 right-4 z-50"></div>
+
+            <!-- Main Content Area -->
+            <div id="content-container">
+                <!-- Initial Loading State (Displayed until JS runs and fetches data) -->
+                <div class="text-center p-12 text-gray-500">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto"></div>
+                    <h3 class="mt-4 text-lg font-medium text-gray-900">Loading Data...</h3>
+                    <p class="mt-1 text-sm text-gray-500">Attempting to connect to your deployed Cloudflare API.</p>
+                </div>
+            </div>
+        </main>
+    </div>
 
     <!-- Patient Form Modal -->
     <div id="patient-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center opacity-0 invisible" onclick="if(event.target === this) closeModal('patient-modal')">
@@ -89,10 +88,8 @@
             </form>
         </div>
     </div>
-</div>
 
-<!-- JAVASCRIPT LOGIC SECTION -->
-<script src="script.js" defer></script>
+    <!-- Include JavaScript file -->
+    <script src="./script.js"></script>
 </body>
 </html>
-
