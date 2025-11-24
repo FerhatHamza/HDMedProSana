@@ -6,12 +6,11 @@
     <title>MedProSana - Hemodialysis Management</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Use Inter font and custom styles -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f9fb; /* Light clinical background */
+            background-color: #f7f9fb;
         }
         .modal {
             transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
@@ -36,12 +35,9 @@
             <h1 class="text-2xl font-bold tracking-tight">
                 <span class="text-emerald-400">MedPro</span>Sana
             </h1>
-            <div class="text-sm">
-                <!-- User ID removed as Worker API setup is typically stateless for simple apps -->
-                <button id="add-patient-btn" class="ml-3 bg-emerald-500 hover:bg-emerald-600 transition p-2 rounded-lg text-white font-medium shadow-md">
-                    + Add Patient
-                </button>
-            </div>
+            <button id="add-patient-btn" class="bg-emerald-500 hover:bg-emerald-600 transition p-2 rounded-lg text-white font-medium shadow-md">
+                + Add Patient
+            </button>
         </div>
     </header>
 
@@ -55,8 +51,8 @@
                 <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">Awaiting Data</h3>
-                <p class="mt-1 text-sm text-gray-500">Connecting to the Cloudflare API...</p>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">Loading Data</h3>
+                <p class="mt-1 text-sm text-gray-500">Connecting to hdmedprosana-api...</p>
             </div>
         </div>
     </main>
@@ -93,12 +89,13 @@
     let state = {
         view: 'list', // 'list' or 'detail'
         currentPatient: null,
-        currentTab: 'info', // 'info', 'meds', 'labs', 'protocol'
+        currentTab: 'info',
         patientList: [],
+        isLoading: false,
     };
 
-    // --- API Configuration ---
-    const API_BASE = 'https://hdmedprosana-api.ferhathamza17.workers.dev/'; // Assumes the Worker is hosted on the same domain at /api
+    // --- API Configuration: UPDATED TO YOUR DEPLOYED WORKER URL ---
+    const API_BASE = 'https://hdmedprosana-api.ferhathamza17.workers.dev/api';
 
     // --- UTILITY FUNCTIONS ---
 
@@ -140,6 +137,9 @@
     // --- API HANDLERS ---
 
     async function apiFetch(url, method = 'GET', data = null) {
+        state.isLoading = true;
+        renderApp(); // Show loading state
+
         try {
             const options = {
                 method,
@@ -156,7 +156,6 @@
                 throw new Error(`API Error ${response.status}: ${errorText}`);
             }
 
-            // Return text if no content (e.g., PUT/DELETE)
             if (response.status === 204 || method === 'PUT' || method === 'DELETE') {
                  return { success: true };
             }
@@ -167,6 +166,8 @@
             console.error("API Call Failed:", error);
             showMessage(error.message || `API call failed for ${url}. See console.`, 'error');
             return null;
+        } finally {
+            state.isLoading = false;
         }
     }
 
@@ -174,17 +175,15 @@
         const result = await apiFetch('/patients');
         if (result && result.patients) {
             state.patientList = result.patients.sort((a, b) => (a.familyname || '').localeCompare(b.familyname || ''));
-            // Update current patient data if in detail view
+            // Refetch details for current patient if in detail view
              if (state.view === 'detail' && state.currentPatient) {
                 const updatedPatient = state.patientList.find(p => p.id === state.currentPatient.id);
                 if (updatedPatient) {
-                    // Refetch full details for current patient (Meds/Labs/Protocol)
                     await fetchPatientDetail(updatedPatient.id);
                 }
             }
             renderApp();
         } else if (result) {
-            // If the response is OK but returns empty array (no patients)
             state.patientList = [];
             renderApp();
         }
@@ -201,11 +200,20 @@
         if (patientRes && medsRes && labsRes && protocolRes) {
             state.currentPatient = {
                 ...patientRes.patient,
-                medications: medsRes.medications.sort((a, b) => new Date(b.date) - new Date(a.date)),
-                labResults: labsRes.labResults.sort((a, b) => new Date(b.date) - new Date(a.date)),
+                // Sort by date/timestamp, assuming D1 provides a date string
+                medications: medsRes.medications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+                labResults: labsRes.labResults.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
                 protocol: protocolRes.protocol,
             };
             renderApp();
+        } else {
+             // Handle case where one fetch failed (e.g., patient was deleted)
+             if (!patientRes) {
+                showMessage("Patient record no longer exists or failed to load.", 'error');
+                state.view = 'list';
+                state.currentPatient = null;
+                fetchPatients();
+             }
         }
     }
 
@@ -214,12 +222,12 @@
         if (result && result.patient) {
             showMessage(`${patientData.name} ${patientData.familyname} added successfully.`);
             closeModal('patient-modal');
-            await fetchPatients(); // Refresh list
+            await fetchPatients();
         }
     }
 
     async function addPatientRecord(patientId, type, record) {
-        const url = `/patients/${patientId}/${type}`; // type is 'medications' or 'labs'
+        const url = `/patients/${patientId}/${type}`; // 'medications' or 'labs'
         const result = await apiFetch(url, 'POST', record);
         if (result && result.success) {
             showMessage(`New ${type.slice(0, -1)} added successfully.`);
@@ -255,10 +263,7 @@
             const formData = new FormData(e.target);
             const patientData = Object.fromEntries(formData.entries());
 
-            if (patientData.id) {
-                // If ID exists, this would be an update function (omitted for simplicity of first iteration)
-                showMessage("Patient update not yet implemented.", 'warning');
-            } else if (patientData.name && patientData.familyname && patientData.birthdate) {
+            if (patientData.name && patientData.familyname && patientData.birthdate) {
                 addPatient(patientData);
             } else {
                 showMessage("Please fill in all required patient fields.", 'error');
@@ -276,7 +281,8 @@
                     state.currentPatient = patient;
                     state.view = 'detail';
                     state.currentTab = 'info';
-                    await fetchPatientDetail(id); // Fetch all detailed records
+                    renderApp(); // Initial render with loading state before fetch
+                    await fetchPatientDetail(id);
                 }
             }
 
@@ -293,7 +299,7 @@
                 state.view = 'list';
                 state.currentPatient = null;
                 state.currentTab = 'info';
-                renderApp();
+                fetchPatients(); // Refresh list just in case
             }
 
             // Add Record Button Listener
@@ -371,6 +377,17 @@
     function renderApp() {
         const container = document.getElementById('content-container');
 
+        if (state.isLoading) {
+            container.innerHTML = `
+                <div class="text-center p-12 text-gray-500">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto"></div>
+                    <h3 class="mt-4 text-lg font-medium text-gray-900">Loading Data...</h3>
+                    <p class="mt-1 text-sm text-gray-500">Communicating with the API.</p>
+                </div>
+            `;
+            return;
+        }
+
         if (state.view === 'list') {
             renderPatientList(container);
         } else if (state.view === 'detail' && state.currentPatient) {
@@ -385,7 +402,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.146M11.667 17H12M13 7a5 5 0 10-5 5h-1a7 7 0 117-7V7z" />
                 </svg>
                 <h3 class="mt-2 text-xl font-semibold text-gray-900">No Patients Registered</h3>
-                <p class="mt-1 text-base text-gray-500">Get started by adding your first patient.</p>
+                <p class="mt-1 text-base text-gray-500">Get started by adding your first patient using the '+ Add Patient' button.</p>
             </div>`;
             return;
         }
@@ -446,7 +463,7 @@
                  <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
                      <div class="flex justify-between items-center">
                          <p class="text-base font-semibold text-gray-800">${r.name}</p>
-                         <span class="text-xs text-gray-500">${r.date}</span>
+                         <span class="text-xs text-gray-500">${r.date || new Date(r.created_at).toISOString().substring(0, 10)}</span>
                      </div>
                      ${type === 'medications' ? 
                          `<p class="text-sm text-gray-600 mt-1">Dosage: <span class="font-medium">${r.dosage}</span></p>` :
@@ -527,7 +544,7 @@
                         </div>
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <p class="text-sm text-gray-500">Last Modified</p>
-                            <p class="text-lg font-medium text-gray-800">${new Date(protocol.updated_at).toLocaleDateString() || 'N/A'}</p>
+                            <p class="text-lg font-medium text-gray-800">${protocol.updated_at ? new Date(protocol.updated_at).toLocaleDateString() : 'Initial Record'}</p>
                         </div>
                     </div>
                 `;
