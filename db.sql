@@ -39,3 +39,19 @@ CREATE TABLE LabResults (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(patient_id) REFERENCES Patients(id) ON DELETE CASCADE
 );
+
+CREATE TABLE Sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    date TEXT DEFAULT (strftime('%Y-%m-%d', 'now')),
+    pre_weight REAL,   
+    post_weight REAL,  
+    pre_bp TEXT,      
+    post_bp TEXT,    
+    access_condition TEXT, 
+    notes TEXT,      
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(patient_id) REFERENCES Patients(id) ON DELETE CASCADE
+);
+
+
